@@ -129,6 +129,57 @@ def calc_variance(path, median, no_of_frames, sd, mean):
     return variance
 
 
+def watershed_apply(image, final_image):
+
+    """
+    Applies the watershed algorithm for the detected ROI
+    :param image: Image gradient magnitudes for applying watershed
+    :param final_image: CSM image on which watershed lines are marked
+    :return: final_image; final image with watershed lines
+    """
+
+    # Converting image to gray scale and applying image thresholds
+    image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    ret, thresh = cv2.threshold(image_gray, 0, 255, cv2.THRESH_BINARY)
+
+    # Setting up kernel for morphological opening and dilation
+    kernel = np.ones((3, 3), np.uint8)
+    opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=2)
+
+    # Calculating sure background and foreground regions using distance transform
+    dilate= cv2.dilate(opening, kernel, iterations=2)
+    distance = cv2.distanceTransform(opening, cv2.DIST_L2, 5)
+    ret, sure_fg = cv2.threshold(distance, 0.7 * distance.max(), 255, 0)
+
+    sure_fg = np.uint8(sure_fg)
+    unknown = cv2.subtract(dilate, sure_fg)
+
+    # Using connected components algorithm
+    ret, markers = cv2.connectedComponents(sure_fg)
+    markers += 1
+    markers[unknown == 255] = 0
+
+    # Applying watershed and drawing watershed lines on tCSM
+    markers = cv2.watershed(image, markers)
+    final_image[markers == -1] = 100
+
+    return final_image
+
+
+def contour_validation(image):
+
+    # img, contours, hierarchy = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # mask = np.ones(image.shape[:2], np.uint8) * 255
+    # for c in contours:
+    #     if cv2.arcLength(c, True) < 100:
+    #         cv2.drawContours(mask, [c], -1, 0, -1)
+    #
+    # final = cv2.bitwise_and(image, image, mask=mask)
+    kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (2, 2))
+    final = cv2.erode(image, kernel)
+    return final
+
+
 def detect_roi(path, mean, variance, threshold):
 
     """
@@ -144,7 +195,9 @@ def detect_roi(path, mean, variance, threshold):
     video_obj = cv2.VideoCapture(path)
 
     # Initialising kernel for dilation operation
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
+
+    saliency = None
 
     while True:
         ret, frame = video_obj.read()
@@ -152,36 +205,52 @@ def detect_roi(path, mean, variance, threshold):
         if ret is False:
             break
 
-        # Calculating Mahalanobis distance to detect foreground pixels
-        with np.errstate(invalid='ignore'):
-            frame_roi = np.divide(np.square(np.subtract(frame, mean)), variance)
-            frame[np.where((frame_roi < [threshold, threshold, threshold]).all(axis=2))] = [0, 0, 0]
-
-        initial = frame
-
-        # Dilation operation on background subtracted image
-        frame = cv2.dilate(frame, kernel)
-
-        # Converting to gray scale for connected components operation
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        components, img, stats, centroids = cv2.connectedComponentsWithStats(thresh, connectivity=8)
-
-        # Ignoring the background component
-        sizes = stats[1:, -1]
-        components -= 1
-
-        # Setting threshold value of component size
-        min_size = 60
-
-        # Setting all components to 0 when size < 40
-        for i in range(0, components):
-            if sizes[i] < min_size:
-                frame[img == i + 1] = 0
-
-        cv2.imshow("Initial", initial)
-        cv2.imshow("Final", frame)
-        cv2.waitKey(30)
+        if saliency is None:
+            saliency = cv2.saliency.MotionSaliencyBinWangApr2014_create()
+            saliency.setImagesize(frame.shape[1], frame.shape[0])
+            saliency.init()
+        # # Calculating Mahalanobis distance to detect foreground pixels
+        # with np.errstate(invalid='ignore'):
+        #     frame_roi = np.divide(np.square(np.subtract(frame, mean)), variance)
+        #     frame[np.where((frame_roi < [threshold, threshold, threshold]).all(axis=2))] = [0, 0, 0]
+        #
+        # # Dilation operation on background subtracted image
+        # frame = cv2.dilate(frame, kernel)
+        #
+        # # Converting to gray scale for connected components operation
+        # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # components, img, stats, centroids = cv2.connectedComponentsWithStats(thresh, connectivity=8)
+        #
+        # # Ignoring the background component
+        # sizes = stats[1:, -1]
+        # components -= 1
+        #
+        # # Setting threshold value of component size
+        # min_size = 40
+        #
+        # # Setting all components to 0 when size < 40
+        # for i in range(0, components):
+        #     if sizes[i] < min_size:
+        #         frame[img == i + 1] = 0
+        #
+        # # Using canny edge detection to generate thinned CSM
+        # gradients_edges = cv2.Canny(frame, 100, 250)
+        #
+        # # Calculating image gradients using Sobel derivative
+        # derivative_x = cv2.Sobel(frame, cv2.CV_64F, 1, 0)
+        # derivative_y = cv2.Sobel(frame, cv2.CV_64F, 0, 1)
+        #
+        # # Calculating magnitude of image gradients
+        # dxabs = cv2.convertScaleAbs(derivative_x)
+        # dyabs = cv2.convertScaleAbs(derivative_y)
+        # mag = cv2.addWeighted(dxabs, 1.5, dyabs, 1.5, 0)
+        #
+        # # Applying watershed algorithm on image gradients and overlaying markers on tCSM
+        # watershed_image = watershed_apply(mag, gradients_edges)
+        # cont_val = contour_validation(watershed_image)
+        # cv2.imshow("Contours", cont_val)
+        # cv2.waitKey(30)
 
     video_obj.release()
 
