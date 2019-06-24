@@ -254,8 +254,14 @@ def detect_roi(path, mean, variance, threshold):
 
     video_obj.release()
 
-
-video_path = r'E:\PES\CDSAML\DatasetC\videos\01001fn00.avi'
+video_path = ""
+who = int(input("Ashish[1] / Chandratop[2] : "))
+if who == 1:
+    video_path = r'E:\PES\CDSAML\DatasetC\videos\01001fn00.avi'
+elif who == 2:
+    video_path = r'D:\CDSAML_2019\Gait_IR\infrared_to_binary\video.avi'
+else:
+    quit()
 
 median_image, frames = median_image(video_path)
 
