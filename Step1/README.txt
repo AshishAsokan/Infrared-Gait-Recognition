@@ -1,0 +1,1 @@
+Contains stuff related to conversion from infrared to binary
