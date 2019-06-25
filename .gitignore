@@ -105,3 +105,6 @@ venv.bak/
 
 # VSCode
 .vscode/
+
+# Folders
+Useless_Old_Code/
