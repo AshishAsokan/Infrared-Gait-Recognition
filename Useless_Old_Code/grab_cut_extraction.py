@@ -84,6 +84,7 @@ def contour_closing(dilated_image, gradient_image):
 def detect_roi(path, background):
 
     video = cv2.VideoCapture(path)
+    
     while True:
 
         ret, frame = video.read()
@@ -91,31 +92,52 @@ def detect_roi(path, background):
         if ret is False:
             break
 
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (6, 6))
-        kernel1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-        roi = cv2.absdiff(frame, background)
-        # ret, thresh = cv2.threshold(roi, 10, 255, cv2.THRESH_BINARY)
-        # canny = cv2.Canny(thresh, 100, 250)
+        image = cv2.absdiff(frame, background)
 
-        # Calculating image gradients using Sobel derivative
-        derivative_x = cv2.Sobel(roi, cv2.CV_64F, 1, 0)
-        derivative_y = cv2.Sobel(roi, cv2.CV_64F, 0, 1)
+        new_image = np.zeros(image.shape, image.dtype)
 
-        # Calculating magnitude of image gradients
-        dxabs = cv2.convertScaleAbs(derivative_x)
-        dyabs = cv2.convertScaleAbs(derivative_y)
-        magnitude = cv2.addWeighted(dxabs, 9.0, dyabs, 9.0, 3)
-        gray = cv2.cvtColor(magnitude, cv2.COLOR_BGR2GRAY)
+        # # Alpha-Beta correction for contrast and brightness
+        # alpha = 1.0 # contrast [1.0 to 3.0]
+        # beta = 50 # brightness [0 to 100]
+        # new_image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
 
-        magnitude[magnitude < 32] = 0
+        # Gamma correction for exposure
+        gamma = 0.65
+        lookUpTable = np.empty((1,256), np.uint8)
+        for i in range(256):
+            lookUpTable[0,i] = np.clip(pow(i / 255.0, gamma) * 255.0, 0, 255)
+        res = cv2.LUT(image, lookUpTable)
 
-        cv2.imshow("Magnitude", magnitude)
+        cv2.imshow("Magnitude", res)
         cv2.waitKey(30)
 
     video.release()
 
 
-path_video = r'E:\PES\CDSAML\DatasetC\videos\01001fn00.avi'
+path_video = r'D:\CDSAML_2019\Gait_IR\DatasetC\DatasetC\videos\01010fs01.avi'
 back_image = calc_mean_background(path_video)
 detect_roi(path_video, back_image)
 cv2.destroyAllWindows()
+
+'''
+CODE:-
+
+kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (6, 6))
+kernel1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+roi = cv2.absdiff(frame, background)
+# ret, thresh = cv2.threshold(roi, 10, 255, cv2.THRESH_BINARY)
+# canny = cv2.Canny(thresh, 100, 250)
+
+# Calculating image gradients using Sobel derivative
+derivative_x = cv2.Sobel(roi, cv2.CV_64F, 1, 0)
+derivative_y = cv2.Sobel(roi, cv2.CV_64F, 0, 1)
+
+# Calculating magnitude of image gradients
+dxabs = cv2.convertScaleAbs(derivative_x)
+dyabs = cv2.convertScaleAbs(derivative_y)
+magnitude = cv2.addWeighted(dxabs, 9.0, dyabs, 9.0, 3)
+gray = cv2.cvtColor(magnitude, cv2.COLOR_BGR2GRAY)
+
+magnitude[magnitude < 32] = 0
+
+'''
