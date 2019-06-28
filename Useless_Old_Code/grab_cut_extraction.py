@@ -26,65 +26,59 @@ def calc_mean_background(path):
     return result
 
 
-def contour_validation(image, size):
+def contour_largest(image):
 
-    contours, hierarchy = cv2.findContours(image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
-    mask_contours = np.ones(image.shape[:2], np.uint8)
-    for c in contours:
-        if cv2.contourArea(c) < size:
-            cv2.drawContours(mask_contours, [c], -1, 0, -1)
+    image = cv2.GaussianBlur(image, (5, 5), 3)
+    ret, thresh = cv2.threshold(image, 130, 255, cv2.THRESH_BINARY)
+    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    mask = np.zeros(image.shape[:2], np.uint8)
 
-    image = cv2.bitwise_and(image, image, mask=mask_contours)
-    return image
+    if len(contours) > 0:
+        large = max(contours, key=cv2.contourArea)
+        cv2.drawContours(mask, [large], 0, (255, 255, 255), 4)
 
-
-def skeleton(image):
-
-    kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
-    skel = np.zeros(image.shape[:2], np.uint8)
-    dim = np.size(image)
-    done = False
-
-    while not done:
-        eroded = cv2.erode(image, kernel)
-        dilated = cv2.dilate(eroded, kernel)
-        temp = cv2.subtract(image, dilated)
-        skel = cv2.bitwise_or(skel, temp)
-        image = eroded.copy()
-
-        size = dim - cv2.countNonZero(image)
-        if size == dim:
-            done = True
-
-    return skel
+    return mask
 
 
-def contour_closing(dilated_image, gradient_image):
+def calc_magnitude(image):
 
-    thresh = cv2.adaptiveThreshold(dilated_image, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 3, 1)
+    image = cv2.GaussianBlur(image, (5, 5), 3)
+    # Calculating image gradients using Sobel derivative
+    derivative_x = cv2.Sobel(image, cv2.CV_64F, 1, 0)
+    derivative_y = cv2.Sobel(image, cv2.CV_64F, 0, 1)
 
-    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Calculating magnitude of image gradients
+    dxabs = cv2.convertScaleAbs(derivative_x)
+    dyabs = cv2.convertScaleAbs(derivative_y)
+    magnitude = cv2.addWeighted(dxabs, 9.0, dyabs, 9.0, 9)
 
-    mask = np.zeros(gradient_image.shape[:2], np.uint8)
-    height, width = gradient_image.shape[:2]
+    return magnitude
+
+
+def contour_closing(dilated_image):
+
+    # thresh = cv2.adaptiveThreshold(dilated_image, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 3, 1)
+
+    contours, hierarchy = cv2.findContours(dilated_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    mask = np.zeros(dilated_image.shape[:2], np.uint8)
+    height, width = dilated_image.shape[:2]
 
     for c in contours:
-        cv2.drawContours(mask, [c], 0, (255, 255, 255), 1)
+        if cv2.contourArea(c) > 100:
+            cv2.drawContours(mask, [c], 0, (255, 255, 255), 1)
 
     mask1 = np.zeros((height + 2, width + 2), np.uint8)  # line 26
     cv2.floodFill(mask, mask1, (0, 0), 255)  # line 27
     mask_inv = cv2.bitwise_not(mask)
-    eroded = cv2.erode(mask_inv, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+    # eroded = cv2.erode(mask_inv, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
 
-    cv2.imshow("Final", eroded)
-    cv2.imshow("Magnitude", gradient_image)
-    cv2.waitKey(30)
+    return mask_inv
 
 
 def detect_roi(path, background):
 
     video = cv2.VideoCapture(path)
-    
     while True:
 
         ret, frame = video.read()
@@ -92,52 +86,33 @@ def detect_roi(path, background):
         if ret is False:
             break
 
-        image = cv2.absdiff(frame, background)
+        roi = cv2.absdiff(frame, background)
+        magnitude = calc_magnitude(roi)
 
-        new_image = np.zeros(image.shape, image.dtype)
+        table = np.array([((i / 255.0) ** 0.6) * 255
+                          for i in np.arange(0, 256)]).astype("uint8")
 
-        # # Alpha-Beta correction for contrast and brightness
-        # alpha = 1.0 # contrast [1.0 to 3.0]
-        # beta = 50 # brightness [0 to 100]
-        # new_image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
+        # roi = cv2.LUT(roi, table)
+        gamma = cv2.LUT(magnitude, table)
 
-        # Gamma correction for exposure
-        gamma = 0.65
-        lookUpTable = np.empty((1,256), np.uint8)
-        for i in range(256):
-            lookUpTable[0,i] = np.clip(pow(i / 255.0, gamma) * 255.0, 0, 255)
-        res = cv2.LUT(image, lookUpTable)
+        blur = cv2.bilateralFilter(gamma, 10, 100, 100)
+        blur = cv2.bilateralFilter(blur, 10, 100, 100)
+        blur = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
 
-        cv2.imshow("Magnitude", res)
+        max_contour = contour_largest(blur)
+        result = cv2.bitwise_or(blur, blur, mask=max_contour)
+
+        filled = contour_closing(result)
+        result = cv2.bitwise_and(blur, blur, mask=filled)
+
+        cv2.imshow("Magnitude", blur)
+        cv2.imshow("Result", result)
         cv2.waitKey(30)
 
     video.release()
 
 
-path_video = r'D:\CDSAML_2019\Gait_IR\DatasetC\DatasetC\videos\01010fs01.avi'
+path_video = r'E:\PES\CDSAML\DatasetC\videos\01001fn00.avi'
 back_image = calc_mean_background(path_video)
 detect_roi(path_video, back_image)
 cv2.destroyAllWindows()
-
-'''
-CODE:-
-
-kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (6, 6))
-kernel1 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-roi = cv2.absdiff(frame, background)
-# ret, thresh = cv2.threshold(roi, 10, 255, cv2.THRESH_BINARY)
-# canny = cv2.Canny(thresh, 100, 250)
-
-# Calculating image gradients using Sobel derivative
-derivative_x = cv2.Sobel(roi, cv2.CV_64F, 1, 0)
-derivative_y = cv2.Sobel(roi, cv2.CV_64F, 0, 1)
-
-# Calculating magnitude of image gradients
-dxabs = cv2.convertScaleAbs(derivative_x)
-dyabs = cv2.convertScaleAbs(derivative_y)
-magnitude = cv2.addWeighted(dxabs, 9.0, dyabs, 9.0, 3)
-gray = cv2.cvtColor(magnitude, cv2.COLOR_BGR2GRAY)
-
-magnitude[magnitude < 32] = 0
-
-'''
