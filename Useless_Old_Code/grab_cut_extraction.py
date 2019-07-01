@@ -2,27 +2,32 @@ import cv2
 import numpy as np
 
 
-def calc_mean_background(path):
+def median_image(path):
 
-    video = cv2.VideoCapture(path)
-    initial_frame = None
-    avg = None
+    """
+    Calculates the median image based on the number of images
+    :param      path: Path of the infrared video
+    :return:    frame: The median image when n value is encountered
+    :return:    n_frames: Number of frames read from video
+    """
 
-    while True:
+    video_obj = cv2.VideoCapture(path)
+    width = int(video_obj.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(video_obj.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    frames = int(video_obj.get(cv2.CAP_PROP_FRAME_COUNT))
+    images = np.zeros((height, width) + (frames,))
 
-        ret, frame = video.read()
+    for i in range(frames):
+        ret, frame = video_obj.read()
 
         if ret is False:
             break
 
-        if initial_frame is None:
-            initial_frame = frame
-            avg = np.float32(frame)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        images[:, :, i] = frame
 
-        cv2.accumulateWeighted(frame, avg, 0.08)
-        result = cv2.convertScaleAbs(avg)
-
-    video.release()
+    result = np.median(images, axis=2)
+    result = np.uint8(result)
     return result
 
 
@@ -30,12 +35,13 @@ def contour_largest(image):
 
     image = cv2.GaussianBlur(image, (5, 5), 3)
     ret, thresh = cv2.threshold(image, 130, 255, cv2.THRESH_BINARY)
+
     contours, hierarchy = cv2.findContours(thresh, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
     mask = np.zeros(image.shape[:2], np.uint8)
 
     if len(contours) > 0:
         large = max(contours, key=cv2.contourArea)
-        cv2.drawContours(mask, [large], 0, (255, 255, 255), 4)
+        cv2.drawContours(mask, [large], 0, (255, 255, 255), 2)
 
     return mask
 
@@ -55,17 +61,16 @@ def calc_magnitude(image):
     return magnitude
 
 
-def contour_closing(dilated_image):
+def contour_closing(image):
 
     # thresh = cv2.adaptiveThreshold(dilated_image, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 3, 1)
 
-    contours, hierarchy = cv2.findContours(dilated_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, hierarchy = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    mask = np.zeros(dilated_image.shape[:2], np.uint8)
-    height, width = dilated_image.shape[:2]
+    mask = np.zeros(image.shape[:2], np.uint8)
+    height, width = image.shape[:2]
 
     for c in contours:
-        if cv2.contourArea(c) > 100:
             cv2.drawContours(mask, [c], 0, (255, 255, 255), 1)
 
     mask1 = np.zeros((height + 2, width + 2), np.uint8)  # line 26
@@ -86,33 +91,44 @@ def detect_roi(path, background):
         if ret is False:
             break
 
+        diamond_kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (5, 5))
+        circle_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+
+        table = np.array([((i / 255.0) ** 0.6) * 255 for i in np.arange(0, 256)]).astype("uint8")
+
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         roi = cv2.absdiff(frame, background)
         magnitude = calc_magnitude(roi)
+        magnitude_frame = calc_magnitude(frame)
 
-        table = np.array([((i / 255.0) ** 0.6) * 255
-                          for i in np.arange(0, 256)]).astype("uint8")
-
-        # roi = cv2.LUT(roi, table)
         gamma = cv2.LUT(magnitude, table)
-
-        blur = cv2.bilateralFilter(gamma, 10, 100, 100)
-        blur = cv2.bilateralFilter(blur, 10, 100, 100)
-        blur = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
+        blur = cv2.bilateralFilter(gamma, 9, 100, 100)
+        blur = cv2.bilateralFilter(blur, 9, 100, 100)
 
         max_contour = contour_largest(blur)
         result = cv2.bitwise_or(blur, blur, mask=max_contour)
 
+        result = cv2.dilate(result, diamond_kernel)
+        result = cv2.morphologyEx(result, cv2.MORPH_CLOSE, circle_kernel, iterations=2)
+        result = cv2.erode(result, circle_kernel)
+
         filled = contour_closing(result)
         result = cv2.bitwise_and(blur, blur, mask=filled)
+        result[result < 130] = 0
 
-        cv2.imshow("Magnitude", blur)
-        cv2.imshow("Result", result)
+        blurred_result = cv2.GaussianBlur(contour_closing(result), (3, 3), 0)
+        blurred_res = cv2.GaussianBlur(result, (3, 3), 0)
+
+        cv2.imshow("Magnitude", gamma)
+        cv2.imshow("Result", blurred_result)
+        cv2.imshow("Thresh", blurred_res)
         cv2.waitKey(30)
 
     video.release()
 
 
-path_video = r'E:\PES\CDSAML\DatasetC\videos\01001fn00.avi'
-back_image = calc_mean_background(path_video)
+path_video = r'E:\PES\CDSAML\DatasetC\videos\01143fn00.avi'
+# path_video = 'video.avi'
+back_image = median_image(path_video)
 detect_roi(path_video, back_image)
 cv2.destroyAllWindows()
