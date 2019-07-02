@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from glob import glob
 
 
 def median_image(path):
@@ -80,6 +81,15 @@ def contour_closing(image):
 
     return mask_inv
 
+def generate_video(image_list,name,x,y):
+    name = 'D:\\CDSAML_2019\\Gait_IR\\Generated_videos\\' + name[:-4] + ".mp4"
+    vid = cv2.VideoWriter(name,cv2.VideoWriter_fourcc(*'MP4V'),25.0,(x,y))
+    for i in image_list:
+        cv2.imshow("img",i)
+        cv2.waitKey(0)
+        vid.write(i)
+    vid.release()
+
 
 def detect_roi(path, background):
 
@@ -89,6 +99,11 @@ def detect_roi(path, background):
 
     video = cv2.VideoCapture(path)
     prev_frame = None
+
+    img_list = list()
+    name = path[-13:]
+    y = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    x = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
 
     while True:
 
@@ -121,21 +136,27 @@ def detect_roi(path, background):
 
         filled = contour_closing(result)
         result = cv2.bitwise_and(blur, blur, mask=filled)
-        # result[result < 150] = 0
+        result[result < 150] = 0
 
         blurred_result = cv2.GaussianBlur(contour_closing(result), (3, 3), 0)
         blurred_res = cv2.GaussianBlur(result, (3, 3), 0)
 
-        cv2.imshow("Magnitude", gamma)
-        cv2.imshow("Result", blurred_result)
-        cv2.imshow("Thresh", blurred_res)
-        cv2.imshow("Difference", diff)
-        cv2.waitKey(30)
+        img_list.append(blurred_result)
 
+    generate_video(img_list,name,x,y)
     video.release()
 
+user = int(input("Ashish[1] / Chandratop[2] : "))
+video_path =""
+if user == 1:
+    video_path_list = glob(r'E:\PES\CDSAML\DatasetC\videos\*.avi')
+else:
+    video_path_list = glob(r'D:\CDSAML_2019\Gait_IR\DatasetC\DatasetC\videos\*.avi')
 
-video_path = r'E:\PES\CDSAML\DatasetC\videos\01010fn00.avi'
-median_value = median_image(video_path)
-detect_roi(video_path, median_value)
-cv2.destroyAllWindows()
+runfor = 0
+for video_path in video_path_list:
+    median_value = median_image(video_path)
+    detect_roi(video_path, median_value)
+    runfor += 1
+    if runfor == 2:
+        break
