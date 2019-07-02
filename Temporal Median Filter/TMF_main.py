@@ -2,8 +2,8 @@ import TMF
 import cv2
 
 if __name__ == '__main__':
-    # video = cv2.VideoCapture(r'E:\PES\CDSAML\DatasetC\videos\01001fn00.avi')
-    video = cv2.VideoCapture('video.avi')
+    video = cv2.VideoCapture(r'D:\CDSAML_2019\Gait_IR\DatasetC\DatasetC\videos\01010fn00.avi')
+    #video = cv2.VideoCapture('video.avi')
     frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT)) - 1
     frame_height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
     frame_width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
