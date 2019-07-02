@@ -116,23 +116,23 @@ def detect_roi(path, background):
         result = cv2.bitwise_or(blur, blur, mask=max_contour)
 
         result = cv2.dilate(result, diamond_kernel)
-        result = cv2.morphologyEx(result, cv2.MORPH_CLOSE, circle_kernel, iterations=2)
+        result = cv2.morphologyEx(result, cv2.MORPH_CLOSE, circle_kernel, iterations=1)
         result = cv2.erode(result, circle_kernel)
 
         filled = contour_closing(result)
         result = cv2.bitwise_and(blur, blur, mask=filled)
 
-        mag_frame = cv2.bitwise_or(result, result, mask=mag_frame)
-        mag_frame = cv2.bitwise_or(mag_frame, mag_frame, mask=result)
+        # mag_frame = cv2.bitwise_or(result, result, mask=mag_frame)
+        # mag_frame = cv2.bitwise_or(mag_frame, mag_frame, mask=result)
         # mag_frame = cv2.morphologyEx(mag_frame, cv2.MORPH_CLOSE, circle_kernel, iterations=2)
 
         mask = np.zeros(result.shape[:2], np.uint8)
         mask[0:210, 0:320] = 255
         result = cv2.bitwise_and(result, result, mask=mask)
-        result[result < 170] = 0
+        result[result < 200] = 0
 
         blurred_result = cv2.GaussianBlur(contour_closing(result), (3, 3), 0)
-        blurred_res = cv2.GaussianBlur(result, (3, 3), 0)
+        # blurred_res = cv2.GaussianBlur(result, (3, 3), 0)
         # blurred_diff = cv2.GaussianBlur(contour_closing(mag_frame), (3, 3), 0)
 
         # cv2.imshow("Magnitude", gamma)
@@ -148,7 +148,7 @@ def detect_roi(path, background):
     video_write.release()
 
 
-video_path = r'E:\PES\CDSAML\DatasetC\videos\01153fn00.avi'
+video_path = r'E:\PES\CDSAML\DatasetC\videos\01001fn00.avi'
 median_value = median_image(video_path)
 detect_roi(video_path, median_value)
 cv2.destroyAllWindows()
