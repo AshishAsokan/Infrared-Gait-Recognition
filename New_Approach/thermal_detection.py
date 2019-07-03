@@ -34,9 +34,9 @@ def median_image(path):
 def contour_largest(image):
 
     image = cv2.GaussianBlur(image, (5, 5), 3)
-    ret, thresh = cv2.threshold(image, 130, 255, cv2.THRESH_BINARY)
+    # ret, thresh = cv2.threshold(image, 130, 255, cv2.THRESH_BINARY)
 
-    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    contours, hierarchy = cv2.findContours(image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
     mask = np.zeros(image.shape[:2], np.uint8)
 
     if len(contours) > 0:
@@ -46,12 +46,12 @@ def contour_largest(image):
     return mask
 
 
-def calc_magnitude(image):
+def calc_magnitude(image, order):
 
-    image = cv2.GaussianBlur(image, (5, 5), 3)
+    # image = cv2.GaussianBlur(image, (3, 3), 0)
     # Calculating image gradients using Sobel derivative
-    derivative_x = cv2.Sobel(image, cv2.CV_64F, 1, 0)
-    derivative_y = cv2.Sobel(image, cv2.CV_64F, 0, 1)
+    derivative_x = cv2.Sobel(image, cv2.CV_64F, order, 0)
+    derivative_y = cv2.Sobel(image, cv2.CV_64F, 0, order)
 
     # Calculating magnitude of image gradients
     dxabs = cv2.convertScaleAbs(derivative_x)
@@ -84,7 +84,7 @@ def contour_closing(image):
 def detect_roi(path, background):
 
     diamond_kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (5, 5))
-    circle_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    circle_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
     table = np.array([((i / 255.0) ** 0.4) * 255 for i in np.arange(0, 256)]).astype("uint8")
     video = cv2.VideoCapture(path)
 
@@ -104,9 +104,13 @@ def detect_roi(path, background):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         roi = cv2.absdiff(frame, background)
 
-        magnitude = calc_magnitude(roi)
-        mag_frame = magnitude.copy()
-        # mag_frame[mag_frame < 140] = 0
+        magnitude = calc_magnitude(roi, 1)
+        magnitude_first = magnitude.copy()
+        magnitude_second = calc_magnitude(roi, 2)
+
+        # mag_diff = cv2.absdiff(magnitude_first, magnitude_second)
+        # mag_diff = cv2.morphologyEx(mag_diff, cv2.MORPH_OPEN, circle_kernel)
+        # mag_diff = cv2.morphologyEx(mag_diff, cv2.MORPH_CLOSE, circle_kernel)
 
         gamma = cv2.LUT(magnitude, table)
         blur = cv2.bilateralFilter(gamma, 5, 100, 100)
@@ -121,6 +125,7 @@ def detect_roi(path, background):
 
         filled = contour_closing(result)
         result = cv2.bitwise_and(blur, blur, mask=filled)
+        temp = result
 
         # mag_frame = cv2.bitwise_or(result, result, mask=mag_frame)
         # mag_frame = cv2.bitwise_or(mag_frame, mag_frame, mask=result)
@@ -129,17 +134,17 @@ def detect_roi(path, background):
         mask = np.zeros(result.shape[:2], np.uint8)
         mask[0:210, 0:320] = 255
         result = cv2.bitwise_and(result, result, mask=mask)
-        result[result < 200] = 0
+        result[result < 160] = 0
 
         blurred_result = cv2.GaussianBlur(contour_closing(result), (3, 3), 0)
-        # blurred_res = cv2.GaussianBlur(result, (3, 3), 0)
-        # blurred_diff = cv2.GaussianBlur(contour_closing(mag_frame), (3, 3), 0)
+        blurred_res = cv2.GaussianBlur(result, (3, 3), 0)
 
-        # cv2.imshow("Magnitude", gamma)
-        cv2.imshow("Result", blurred_result)
+        cv2.imshow("Magnitude Difference", magnitude_second)
+        cv2.imshow("First derivative", magnitude)
+        # cv2.imshow("Result", blurred_result)
         # cv2.imshow("Thresh", blurred_res)
-        # cv2.imshow("Mag", mag_frame)
-        cv2.waitKey(30)
+        # cv2.imshow("Mag", temp)
+        cv2.waitKey(0)
 
         blurred_result = cv2.cvtColor(blurred_result, cv2.COLOR_GRAY2BGR)
         video_write.write(blurred_result)
@@ -148,7 +153,7 @@ def detect_roi(path, background):
     video_write.release()
 
 
-video_path = r'E:\PES\CDSAML\DatasetC\videos\01001fn00.avi'
+video_path = r'E:\PES\CDSAML\DatasetC\videos\01010fn00.avi'
 median_value = median_image(video_path)
 detect_roi(video_path, median_value)
 cv2.destroyAllWindows()
