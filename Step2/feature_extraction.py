@@ -17,6 +17,7 @@ def draw_rectangle(reading, kernel, mode):
     """
 
     return_list = []
+    empty_list = True
     # Converting frame to gray scale
     frame = cv2.cvtColor(reading, cv2.COLOR_BGR2GRAY)
 
@@ -26,7 +27,17 @@ def draw_rectangle(reading, kernel, mode):
         dilate = frame
 
     # Finding contours for dilated image
-    _, cont, hier = cv2.findContours(dilate.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    cont, hier = cv2.findContours(dilate.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+
+    if hier is None:
+        if mode == 'person':
+            return reading, return_list, empty_list
+        else:
+            return return_list, empty_list
+
+    else:
+        empty_list = False
+
     for con, hi in zip(cont, hier[0]):
         if hi[3] != -1:
             cv2.drawContours(dilate, [con], 0, (0, 255, 0),  1)
@@ -36,7 +47,7 @@ def draw_rectangle(reading, kernel, mode):
     image = cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel)
 
     # Finding contours of processed image
-    _, cont, hierarchy = cv2.findContours(image.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cont, hierarchy = cv2.findContours(image.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # Loop for all contours in the final image
     for c in cont:
@@ -54,9 +65,9 @@ def draw_rectangle(reading, kernel, mode):
             return_list.append((c_x, c_y))
 
     if mode == 'person':
-        return reading, return_list
+        return reading, return_list, empty_list
     else:
-        return return_list
+        return return_list, empty_list
 
 
 def calc_stride_dist(image):
@@ -73,20 +84,20 @@ def calc_stride_dist(image):
     image_and = cv2.bitwise_and(image, image, mask=mask)
 
     image_and = cv2.erode(image_and, np.ones((4, 4), np.uint8), iterations=1)
-    cv2.imshow("Result", image_and)
-    cv2.waitKey(0)
 
     # Obtaining size of rectangles for input image
     ker = cv2.getStructuringElement(cv2.MORPH_CROSS, (5, 5))
     # result = watershed_segmentation(image_and)
-    centers = draw_rectangle(image_and, ker, 'feet')
+    centers, empty_list = draw_rectangle(image_and, ker, 'feet')
+
+    if empty_list:
+        return 1
 
     if len(centers) > 1:
         distance = dist.euclidean(centers[0], centers[1])
     else:
         distance = 1
 
-    print(distance)
     return distance
 
 
@@ -102,6 +113,7 @@ def calc_gait_cycle(cap):
     """
 
     step_count = 0      # Number of gait steps in video sample
+    threshold = 1
     coefficients = []   # List for storing haar wavelet coefficients for each cycle
     coeff_temp = []     # List for storing haar wavelet coefficients for each frame
     gait_sizes = []     # Nested list that stores sizes of rectangles for gait cycles
@@ -125,14 +137,24 @@ def calc_gait_cycle(cap):
         coeff_temp.append((c_a, c_h, c_v, c_d))
 
         # Calculating step length and rectangle dimensions for image
-        stride_dist = calc_stride_dist(reading)
         ker = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        reading_temp, size_rect, empty_list = draw_rectangle(reading, ker, 'person')
 
-        reading, size_rect = draw_rectangle(reading, ker, 'person')
-        cycle_sizes.append(size_rect)
+        if empty_list:
+            continue
+
+        if len(size_rect) > 0:
+            cycle_sizes.append(size_rect)
+
+        stride_dist = calc_stride_dist(reading)
 
         # Checking if the maximum step length is encountered (ending of one step)
-        if (len(gap_legs) > 2 and stride_dist < gap_legs[len(gap_legs) - 1]) and stride_dist > 29:
+        if (len(gap_legs) > 2 and stride_dist < gap_legs[len(gap_legs) - 1]) and \
+                gap_legs[len(gap_legs) - 1] > threshold:
+
+            if step_count is 0:
+                threshold = gap_legs[len(gap_legs) - 1]
+
             gait_sizes.append(cycle_sizes)
             n_size.append(frame_count)
             step_lengths.append(gap_legs)
@@ -270,37 +292,36 @@ def calc_wavelet_component(haar_coeff, noof_frames):
     return wavelet_feature
 
 
-# Creating Video Capture Object
-video = cv2.VideoCapture(r'E:\PES\CDSAML\DatasetC\Binary Videos\0010\Walk_2.mp4')
-
-step_cnt, sizes, step_frames, step_lens, haar_coefficients = calc_gait_cycle(video)
-print(step_frames)
-
-# step_cnt     : Number of steps in given gait sequence
-# sizes        : Size of rectangles in each gait step
-# step_frames  : Number of frames in each step
-# step_lens    : Distance between feet in each frame
-
-height, width, angle, aspect = calc_spatial_component(step_cnt, sizes, step_frames)
-
-# height    : mean height of bounding rectangle
-# width     : mean width of bounding rectangle
-# angle     : mean angle of bounding rectangle
-# aspect    : mean aspect ratio of bounding rectangle
-
-step_length, stride_length, cadence, velocity = (calc_temporal_component(step_lens))
-
-# step_length   : length of each step
-# stride_length : length of each stride (2 * step length)
-# cadence       : cadence of subject (number of steps per second)
-# velocity      : velocity of subject ( cadence * 0.5 * stride length)
-
-wavelet_component = calc_wavelet_component(haar_coefficients, step_frames)
-
-for i in wavelet_component:
-    print(i)
-
-# wavelet_component : List of tuples containing mean and standard deviation
-
-video.release()
-cv2.destroyAllWindows()
+# # Creating Video Capture Object
+# video = cv2.VideoCapture(r'E:\PES\CDSAML\Gait_IR\CT\Valid_videos\01014fb00.mp4')
+#
+# step_cnt, sizes, step_frames, step_lens, haar_coefficients = calc_gait_cycle(video)
+#
+# # step_cnt     : Number of steps in given gait sequence
+# # sizes        : Size of rectangles in each gait step
+# # step_frames  : Number of frames in each step
+# # step_lens    : Distance between feet in each frame
+#
+# height, width, angle, aspect = calc_spatial_component(step_cnt, sizes, step_frames)
+#
+# # height    : mean height of bounding rectangle
+# # width     : mean width of bounding rectangle
+# # angle     : mean angle of bounding rectangle
+# # aspect    : mean aspect ratio of bounding rectangle
+#
+# step_length, stride_length, cadence, velocity = (calc_temporal_component(step_lens))
+#
+# # step_length   : length of each step
+# # stride_length : length of each stride (2 * step length)
+# # cadence       : cadence of subject (number of steps per second)
+# # velocity      : velocity of subject ( cadence * 0.5 * stride length)
+#
+# wavelet_component = calc_wavelet_component(haar_coefficients, step_frames)
+#
+# for i in step_lens:
+#     print(i)
+#
+# # wavelet_component : List of tuples containing mean and standard deviation
+#
+# video.release()
+# cv2.destroyAllWindows()

@@ -3,7 +3,8 @@ import feature_extraction as f_ext
 import numpy as np
 import glob
 
-contents = glob.glob(r'D:\CDSAML_2019\Gait_IR\CT\NEW\*.mp4')
+# contents = glob.glob(r'D:\CDSAML_2019\Gait_IR\CT\NEW\*.mp4')
+contents = glob.glob(r'E:\PES\CDSAML\Gait_IR\CT\Valid_videos\*.mp4')
 
 train_vector = []
 for path in contents:
@@ -19,8 +20,7 @@ for path in contents:
     # gait_cycle_estimate[4]     : Haar wavelet coefficients found using 2D-DWT
 
     spatial_feature_vector = f_ext.calc_spatial_component(gait_cycle_estimate[0], gait_cycle_estimate[1],
-
-                                                                 gait_cycle_estimate[2])
+                                                          gait_cycle_estimate[2])
     # spatial_feature_vector[0]    : mean height of bounding rectangle
     # spatial_feature_vector[1]    : mean width of bounding rectangle
     # spatial_feature_vector[2]    : mean angle of bounding rectangle
@@ -43,7 +43,7 @@ for path in contents:
     train_vector.append(training_sample)
 
 # train_vector = np.array(train_vector)
-print(train_vector)
+print(len(train_vector))
 
 
 
