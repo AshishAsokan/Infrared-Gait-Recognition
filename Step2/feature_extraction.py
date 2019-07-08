@@ -112,16 +112,17 @@ def calc_gait_cycle(cap):
     :return: step_lengths; list of distances between the 2 feet for each step
     """
 
-    step_count = 0      # Number of gait steps in video sample
-    threshold = 1
-    coefficients = []   # List for storing haar wavelet coefficients for each cycle
-    coeff_temp = []     # List for storing haar wavelet coefficients for each frame
-    gait_sizes = []     # Nested list that stores sizes of rectangles for gait cycles
-    cycle_sizes = []    # Stores size of rectangles for each gait cycle
-    step_lengths = []   # List that stores step length for each gait cycle of each frame
-    frame_count = 0     # Number of frames in each gait cycle
-    n_size = []         # List for storing number of frames in each gait cycle
-    gap_legs = []       # List for storing gap between feet in each frame
+    step_count = 0          # Number of gait steps in video sample
+    threshold = 1           # Threshold value for step length
+    coefficients = []       # List for storing haar wavelet coefficients for each cycle
+    coeff_temp = []         # List for storing haar wavelet coefficients for each frame
+    gait_sizes = []         # Nested list that stores sizes of rectangles for gait cycles
+    cycle_sizes = []        # Stores size of rectangles for each gait cycle
+    step_lengths = []       # List that stores step length for each gait cycle of each frame
+    frame_count = 0         # Number of frames in each gait cycle
+    frame_count_video = 0   # Number of frames read from the video
+    n_size = []             # List for storing number of frames in each gait cycle
+    gap_legs = []           # List for storing gap between feet in each frame
     while True:
 
         # Reading each frame from the video
@@ -131,6 +132,7 @@ def calc_gait_cycle(cap):
             break
 
         frame_count += 1
+        frame_count_video += 1
 
         temp = cv2.cvtColor(reading, cv2.COLOR_BGR2GRAY)
         c_a, (c_h, c_v, c_d) = pywt.dwt2(temp, 'haar')
@@ -266,7 +268,12 @@ def calc_wavelet_component(haar_coeff, noof_frames):
 
     Format: [[mean1, stand1], [mean2, stand2], [mean3, stand3]]
     """
-    wavelet_feature = []
+    mean_value_1 = 0
+    mean_value_2 = 0
+    mean_value_3 = 0
+    stand_value_1 = 0
+    stand_value_2 = 0
+    stand_value_3 = 0
     for index in range(len(haar_coeff)):
 
         # Taking sum of coefficients to enable calculations
@@ -287,13 +294,24 @@ def calc_wavelet_component(haar_coeff, noof_frames):
         mean_3 = np.sum(coefficient_3, axis=None) / noof_frames[index]
         stand_3 = calc_stand_deviation(coefficient_3, noof_frames[index], mean_3)
 
-        wavelet_feature.append([[mean_1, stand_1], [mean_2, stand_2], [mean_3, stand_3]])
+        mean_value_1 += mean_1
+        mean_value_2 += mean_2
+        mean_value_3 += mean_3
+        stand_value_1 += stand_1
+        stand_value_2 += stand_2
+        stand_value_3 += stand_3
 
-    return wavelet_feature
+    mean_value_1 /= len(haar_coeff)
+    mean_value_2 /= len(haar_coeff)
+    mean_value_3 /= len(haar_coeff)
+    stand_value_1 /= len(haar_coeff)
+    stand_value_2 /= len(haar_coeff)
+    stand_value_3 /= len(haar_coeff)
+    return [mean_value_1, mean_value_2, mean_value_3, stand_value_1, stand_value_2, stand_value_3]
 
 
 # # Creating Video Capture Object
-# video = cv2.VideoCapture(r'E:\PES\CDSAML\Gait_IR\CT\Valid_videos\01003fb00.mp4')
+# video = cv2.VideoCapture(r'E:\PES\CDSAML\Gait_IR\CT\Valid_videos\01002fn02.mp4')
 #
 # step_cnt, sizes, step_frames, step_lens, haar_coefficients = calc_gait_cycle(video)
 #
@@ -317,7 +335,6 @@ def calc_wavelet_component(haar_coeff, noof_frames):
 # # velocity      : velocity of subject ( cadence * 0.5 * stride length)
 #
 # wavelet_component = calc_wavelet_component(haar_coefficients, step_frames)
-#
 # # wavelet_component : List of tuples containing mean and standard deviation
 #
 # video.release()

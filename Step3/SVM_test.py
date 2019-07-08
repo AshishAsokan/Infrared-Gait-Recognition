@@ -1,7 +1,6 @@
 import cv2
 import feature_extraction as f_ext
 from sklearn import metrics
-import SVM_train as svt
 from sklearn.externals import joblib
 import numpy as np
 import glob
@@ -42,16 +41,13 @@ for path in contents:
     # Wavelet features calculated using 2D Haar DWT
 
     training_sample = np.concatenate([spatial_feature_vector, temporal_feature_vector, wavelet_component], axis=None)
-
+    # training_sample = temporal_feature_vector
     label = int(path[(len(path) - 11): (len(path) - 8)])
     responses.append(label)
     test_vector.append(training_sample)
 
 test_vector = np.array(test_vector)
 responses = np.array(responses)
-
-test_vector = np.asarray([np.pad(ele, (0, svt.max_length - len(ele)), 'constant', constant_values=0)
-                          for ele in test_vector])
 
 # Loading SVM model
 clf = joblib.load('SVM_Model.pkl')
