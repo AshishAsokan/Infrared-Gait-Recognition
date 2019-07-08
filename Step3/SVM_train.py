@@ -1,16 +1,17 @@
 import cv2
 import feature_extraction as f_ext
+from sklearn import svm
+from sklearn.externals import joblib
 import numpy as np
 import glob
 
 # contents = glob.glob(r'D:\CDSAML_2019\Gait_IR\CT\NEW\*.mp4')
-contents = glob.glob(r'E:\PES\CDSAML\Gait_IR\CT\Valid_videos\*.mp4')
-
+contents = glob.glob(r'E:\Softwares\PyCharm\PyCharm Community Edition 2018.2.4\Projects\Gait Analysis\Valid_videos\*.mp4')
 train_vector = []
+responses = []
+
 for path in contents:
     video = cv2.VideoCapture(path)
-    print(path)
-
     gait_cycle_estimate = f_ext.calc_gait_cycle(video)
 
     # gait_cycle_estimate[0]     : Number of steps in given gait sequence
@@ -40,10 +41,23 @@ for path in contents:
     # Wavelet features calculated using 2D Haar DWT
 
     training_sample = np.concatenate([spatial_feature_vector, temporal_feature_vector, wavelet_component], axis=None)
+
+    label = int(path[(len(path) - 11): (len(path) - 8)])
+    responses.append(label)
     train_vector.append(training_sample)
 
-# train_vector = np.array(train_vector)
-print(len(train_vector))
+train_vector = np.array(train_vector)
+responses = np.array(responses)
+
+max_length = np.max([len(element) for element in train_vector])
+train_vector = np.asarray([np.pad(ele, (0, max_length - len(ele)), 'constant', constant_values=0)
+                           for ele in train_vector])
+
+# Creating SVM model
+clf = svm.SVC(kernel='linear')
+clf.fit(train_vector, responses)
+joblib.dump(clf, 'SVM_Model.pkl')
+print("Training Successful")
 
 
 

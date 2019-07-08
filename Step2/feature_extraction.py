@@ -293,7 +293,7 @@ def calc_wavelet_component(haar_coeff, noof_frames):
 
 
 # # Creating Video Capture Object
-# video = cv2.VideoCapture(r'E:\PES\CDSAML\Gait_IR\CT\Valid_videos\01014fb00.mp4')
+# video = cv2.VideoCapture(r'E:\PES\CDSAML\Gait_IR\CT\Valid_videos\01003fb00.mp4')
 #
 # step_cnt, sizes, step_frames, step_lens, haar_coefficients = calc_gait_cycle(video)
 #
@@ -317,9 +317,6 @@ def calc_wavelet_component(haar_coeff, noof_frames):
 # # velocity      : velocity of subject ( cadence * 0.5 * stride length)
 #
 # wavelet_component = calc_wavelet_component(haar_coefficients, step_frames)
-#
-# for i in step_lens:
-#     print(i)
 #
 # # wavelet_component : List of tuples containing mean and standard deviation
 #
