@@ -123,7 +123,7 @@ def detect_roi(path, background):
         result = cv2.bitwise_and(blur, blur, mask=filled)
 
         threshold_value = int(input("THRESHOLD VALUE = "))
-        result[result < threshold value] = 0 # This value
+        result[result < threshold_value] = 0 # This value
 
         blurred_result = cv2.GaussianBlur(contour_closing(result), (3, 3), 0)        
         blurred_result = cv2.cvtColor(blurred_result, cv2.COLOR_GRAY2BGR)
