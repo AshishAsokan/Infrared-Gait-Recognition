@@ -91,6 +91,7 @@ def detect_roi(path, background):
     name = path[:-20] + "binaries\\" + path[-13:-4] + ".mp4"
     video_write = cv2.VideoWriter(name, fourcc, 25.0, (width, height))
     image_list = list()
+    threshold_value = int(input("THRESHOLD VALUE = "))
     while True:
 
         ret, frame = video.read()
@@ -122,7 +123,6 @@ def detect_roi(path, background):
         filled = contour_closing(result)
         result = cv2.bitwise_and(blur, blur, mask=filled)
 
-        threshold_value = int(input("THRESHOLD VALUE = "))
         result[result < threshold_value] = 0 # This value
 
         blurred_result = cv2.GaussianBlur(contour_closing(result), (3, 3), 0)        
@@ -130,12 +130,13 @@ def detect_roi(path, background):
         cv2.imshow("thresholded result", blurred_result)
         cv2.waitKey(30)
         image_list.append(blurred_result)
-        ok_or_not = int(input("Enter 1 if the result is ok or 0 if not = "))
-        if ok_or_not == 0:
-            detect_roi(path, background)
-        else:
-            for thrimg in image_list:
-                video_write.write(blurred_result)
+    cv2.destroyAllWindows()
+    ok_or_not = int(input("Enter 1 if the result is ok or 0 if not = "))
+    if ok_or_not == 0:
+        detect_roi(path, background)
+    else:
+        for thrimg in image_list:
+            video_write.write(blurred_result)
     video_write.release()
 
 # MAIN
