@@ -9,7 +9,7 @@ based on the threshold value
 
 import cv2
 import numpy as np
-from os import getcwd
+from os import getcwd, remove
 from glob import glob
 
 # Functions
@@ -131,13 +131,17 @@ def detect_roi(path, background):
         cv2.waitKey(30)
         image_list.append(blurred_result)
     cv2.destroyAllWindows()
-    ok_or_not = int(input("Enter 1 if the result is ok or 0 if not = "))
+    ok_or_not = int(input("Enter 1 if the result is ok, 0 if not, -1 to skip the video = "))
     if ok_or_not == 0:
+        video_write.release()
         detect_roi(path, background)
+    elif ok_or_not == -1:
+        video_write.release()
+        remove(name)
     else:
         for thrimg in image_list:
-            video_write.write(blurred_result)
-    video_write.release()
+            video_write.write(thrimg)
+        video_write.release()
 
 # MAIN
 
