@@ -128,7 +128,7 @@ def detect_roi(path, background):
         blurred_result = cv2.GaussianBlur(contour_closing(result), (3, 3), 0)        
         blurred_result = cv2.cvtColor(blurred_result, cv2.COLOR_GRAY2BGR)
         cv2.imshow("thresholded result", blurred_result)
-        cv2.waitKey(30)
+        cv2.waitKey(10)
         image_list.append(blurred_result)
     cv2.destroyAllWindows()
     ok_or_not = int(input("Enter 1 if the result is ok, 0 if not, -1 to skip the video = "))
