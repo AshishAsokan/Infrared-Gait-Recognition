@@ -50,7 +50,7 @@ def contour_largest(image):
     return mask
 
 
-def convex_hull(image):
+def convex_hull(image, thresh_size):
 
     image = cv2.GaussianBlur(image, (5, 5), 3)
     # ret, thresh = cv2.threshold(image, 130, 255, cv2.THRESH_BINARY)
@@ -63,7 +63,7 @@ def convex_hull(image):
             hull.append(cv2.convexHull(contours[i], False))
 
     for i in range(len(contours)):
-        if cv2.contourArea(contours[i]) > 500:
+        if cv2.contourArea(contours[i]) > thresh_size:
             cv2.drawContours(mask, hull, i, (255, 0, 0), 1, 8)
 
     mask = contour_closing(mask)
@@ -92,17 +92,50 @@ def get_weighted_sum(list_images):
     weighted = list_images[len(list_images) - 1]
     weight = 0.5
     for i in range(1, len(list_images)):
-        weighted = cv2.addWeighted(weighted, 1.5, list_images[len(list_images) - (i + 1)], weight, 0)
-        weight -= 0.02
+        weighted = cv2.addWeighted(weighted, 1.5, list_images[len(list_images) - (i + 1)], weight, -5)
+        weight -= 0.1
 
     return weighted
 
 
-def threshold_image(image):
+def remove_noise(image):
 
-    random_values = np.random.randint(low=85, high=200, size=(1, 10), dtype=np.uint8).tolist()
+    contours, _ = cv2.findContours(image, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    leg_distance = 180
+    mask = np.zeros(image.shape[:2], np.uint8)
+    if len(contours) > 0:
+        flat = lambda l: [item for sublist in l for item in sublist]
+        flat_contours = flat(flat(contours))
+        flat_contours = [element.tolist() for element in flat_contours]
+
+        flat_contours.sort(key=lambda x: x[0])
+        flat_contours = [i for i in flat_contours if i[1] <= (leg_distance + 20)]
+        # left_point_1 = tuple([flat_contours[0][0], flat_contours[0][1] + 5])
+        # left_point_2 = tuple([flat_contours[0][0] + 20, flat_contours[0][1] - 10])
+        left_point_1 = tuple([flat_contours[0][0], leg_distance])
+        left_point_2 = tuple([flat_contours[0][0] + 23, leg_distance + 17])
+
+        right_point_1 = tuple([flat_contours[len(flat_contours) - 1][0], leg_distance])
+        right_point_2 = tuple([flat_contours[len(flat_contours) - 1][0] - 23, leg_distance + 17])
+
+        cv2.rectangle(mask, left_point_1, left_point_2, (255, 255, 255), cv2.FILLED)
+        cv2.rectangle(mask, right_point_1, right_point_2, (255, 255, 255), cv2.FILLED)
+    return mask
+
+
+def threshold_image(image, mean_value):
+
+    if mean_value < 55:
+        low_range = 85
+        high_range = 180
+
+    else:
+        low_range = 150
+        high_range = 255
+
+    contour_size = int(18 * mean_value)
+    random_values = np.random.randint(low=low_range, high=high_range, size=(1, 5), dtype=np.uint8).tolist()
     random_values[0].sort()
-    print(random_values)
     thr_images = []
     for i in random_values[0]:
         temp = image.copy()
@@ -112,14 +145,29 @@ def threshold_image(image):
 
     weight_image = get_weighted_sum(thr_images)
     final = cv2.morphologyEx(weight_image, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)),
-                             iterations=2)
+                             iterations=3)
     final = cv2.morphologyEx(final, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)), iterations=2)
 
-    hull = convex_hull(final)
+    hull = convex_hull(final, contour_size)
     person = cv2.bitwise_or(weight_image, weight_image, mask=hull)
-    cv2.imshow("person", person)
-    cv2.imshow("Weighted", weight_image)
-    cv2.waitKey(0)
+    eroded_person = cv2.erode(person, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
+    upper = person.copy()
+    upper[180:, :] = 0
+
+    blur = cv2.GaussianBlur(eroded_person, (5, 5), 0)
+    blur = cv2.morphologyEx(blur, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)), iterations=2)
+    feet = blur.copy()
+    feet[:180, :] = 0
+    eroded = cv2.erode(feet, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (1, 1)))
+
+    result = remove_noise(eroded)
+    feet = cv2.bitwise_or(person, person, mask=result)
+    final = cv2.add(feet, upper)
+    final = cv2.bilateralFilter(final, 15, 100, 100)
+    # final = cv2.GaussianBlur(final, (5, 5), 0)
+    final = cv2.morphologyEx(final, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2)), iterations=1)
+
+    return final
 
 
 def contour_closing(image):
@@ -146,10 +194,11 @@ def detect_roi(path, background):
 
     diamond_kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (5, 5))
     circle_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    table = np.array([((i / 255.0) ** 0.4) * 255 for i in np.arange(0, 256)]).astype("uint8")
-    fgbg = cv2.createBackgroundSubtractorMOG2()
-
     video = cv2.VideoCapture(path)
+
+    height, width = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+    fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+    video_write = cv2.VideoWriter('video_binary.mp4', fourcc, 25.0, (width, height))
 
     while True:
 
@@ -158,18 +207,10 @@ def detect_roi(path, background):
         if ret is False:
             break
 
-        diamond_kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (5, 5))
-        circle_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-
-        table = np.array([((i / 255.0) ** 0.6) * 255 for i in np.arange(0, 256)]).astype("uint8")
-
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        mean_bright = np.mean(frame)
         roi = cv2.absdiff(frame, background)
         magnitude = calc_magnitude(roi, 1)
-
-        # gamma = cv2.LUT(magnitude, table)
-        # blur = cv2.bilateralFilter(gamma, 5, 100, 100)
-        # blur = cv2.bilateralFilter(blur, 5, 100, 100)
 
         # max_contour = contour_largest(blur)
         max_contour = contour_largest(magnitude)
@@ -182,38 +223,15 @@ def detect_roi(path, background):
 
         filled = contour_closing(result)
         result = cv2.bitwise_and(magnitude, magnitude, mask=filled)
-        threshold_image(result)
-        # result_1 = result.copy()
-        # result_2 = result.copy()
-        #
-        # result[result < 200] = 0 # This value
-        # result_1[result_1 < 100] = 0
-        # result_2[result_2 < 30] = 0
-        #
-        # final = cv2.addWeighted(result, 1.5, result_1, 0.5, 0)
-        # final = cv2.addWeighted(final, 1.5, result_2, 0.2, 0)
-        # final = cv2.morphologyEx(final, cv2.MORPH_CLOSE, circle_kernel, iterations=2)
-        # final = cv2.morphologyEx(final, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)), iterations=2)
-        # hull = convex_hull(result_1)
-        #
-        # cropped = cv2.bitwise_or(result, result, mask=hull)
-        # cropped_1 = cv2.bitwise_or(result_1, result_1, mask=hull)
-        # cropped_2 = cv2.bitwise_or(result_2, result_2, mask=hull)
-        #
-        #
-        # blurred_result = cv2.GaussianBlur(contour_closing(result), (3, 3), 0)
-        # blurred_result = cv2.cvtColor(blurred_result, cv2.COLOR_GRAY2BGR)
-        # cv2.imshow("Hull", hull)
-        # cv2.imshow("Cropped", cropped)
-        # cv2.imshow("Cropped_1", cropped_1)
-        # cv2.imshow("Cropped_2", cropped_2)
-        # cv2.waitKey(0)
+        processed_frame = threshold_image(result, mean_bright)
+        processed_frame = cv2.cvtColor(processed_frame, cv2.COLOR_GRAY2BGR)
+        video_write.write(processed_frame)
 
     video.release()
+    video_write.release()
 
 
-video_path = r'E:\PES\CDSAML\DatasetC\videos\01001fn00.avi'
-sil_path = r'E:\Softwares\PyCharm\PyCharm Community Edition 2018.2.4\Projects\Gait Analysis\silhouettes\050\fn00'
+video_path = r'E:\PES\CDSAML\DatasetC\videos\01015fn00.avi'
 median_value = median_image(video_path)
 detect_roi(video_path, median_value)
 cv2.destroyAllWindows()
