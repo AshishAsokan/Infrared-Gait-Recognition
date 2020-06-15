@@ -284,7 +284,7 @@ def distance_parameters(points_dict):
     return parameters
 
 
-# video = cv2.VideoCapture(r'E:\Softwares\PyCharm\PyCharm Community Edition 2018.2.4\Projects\Gait Analysis\Final_binaries\01001fb01.mp4')
+# video = cv2.VideoCapture(Insert video path here to test)
 # structure = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
 # train_vector = []
 # frame_count = 0
