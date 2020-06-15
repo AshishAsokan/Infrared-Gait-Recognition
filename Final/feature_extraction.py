@@ -347,7 +347,7 @@ def calc_wavelet_component(haar_coeff, noof_frames):
 
 
 # # Creating Video Capture Object
-# video = cv2.VideoCapture(r'E:\PES\CDSAML\Gait_IR\CT\Valid_videos\01002fn02.mp4')
+# video = cv2.VideoCapture(insert path here)
 #
 # step_cnt, sizes, step_frames, step_lens, haar_coefficients = calc_gait_cycle(video)
 #
