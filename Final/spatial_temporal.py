@@ -28,16 +28,7 @@ def spatial_temporal_features(path):
     # temporal_feature_vector[2]   : cadence of subject (number of steps per second)
     # temporal_feature_vector[3]   : velocity of subject ( cadence * 0.5 * stride length)
 
-    wavelet_component = f_ext.calc_wavelet_component(gait_cycle_estimate[4], gait_cycle_estimate[2])
-
-    # mean and standard deviation for 3 coefficients
-    # [(mean_1, mean_2, mean_3), (stand_1, stand_2, stand_3)]
-    # Wavelet features calculated using 2D Haar DWT
-
     training_sample = np.concatenate([spatial_feature_vector, temporal_feature_vector], axis=None).tolist()
-    # training_sample = temporal_feature_vector
-
-    # training_sample = temporal_feature_vector + spatial_feature_vector
     return training_sample
 
 
