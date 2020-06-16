@@ -1,1 +1,0 @@
-Contains the training and testing of the SVM

@@ -1,1 +1,0 @@
-Contains the code to extract features from gait and analyse them
