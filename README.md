@@ -89,7 +89,7 @@ A SVM model was used for classification of the gait signatures. All the above me
 
 ### Prerequisites
 
-This project is built on Python 3. It requires OpenCV support and this project was implemented using OpenCV 3.4. The dataset used is the CASIA-C dataset which is available here (http://www.cbsr.ia.ac.cn/english/Gait%20Databases.asp). 
+This project is built on Python 3. It requires OpenCV support and this project was implemented using OpenCV 3.4. The dataset used is the CASIA-C dataset which is available here (http://www.cbsr.ia.ac.cn/english/Gait%20Databases.asp). The training set consisted of the first 7 sequences for each subject and the test set consisted of the remaining 3 sequences per subject.
 
 ### Running the Program
 
