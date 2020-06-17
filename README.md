@@ -10,14 +10,59 @@ This project is an implementation of a gait recognition system with the CASIA-C 
 
 The initial ROI is obtained by first modelling the background of the gait sequence using a standard intensity-based background median model at each pixel. Once this background model is generated, it is subtracted from the gait sequences to obtain a rough estimate of the silhouette. Given below is an example of the silhouette obtained:
 
+<figure align = "center" style = "display: inline-block;">
+    <img src="Images/gait6.png" height="150" width = "200" hspace = "20px">
+    <figcaption> (a) Original Frame </figcaption>
+</figure>
+
+<figure align = "center" style = "display: inline-block;">
+    <img src="Images/gait5.png" height="150" width = "200" hspace = "20px">
+    <figcaption> (b) Background Median </figcaption>
+</figure>
+
+<figure align = "center" style = "display: inline-block;">
+    <img src="Images/gait7.png" height="150" width = "200">
+    <figcaption> (c) Silhouette obtained </figcaption>
+</figure>
+
 Sobel edge detectors are used to generate a crude outline of the subject along with gamma correction to improve visibility. The torso and the feet of the human silhouette were pro-
 cessed individually and a convex hull was constructed around the largest contour which outlined the foreground object. 
+
+<figure align = "center" style = "display: inline-block;">
+    <img src="Images/gait10.png" height="150" width = "200" hspace = "20px">
+    <figcaption> (a) Final gradients with gamma correction </figcaption>
+</figure>
+
+<figure align = "center" style = "display: inline-block;">
+    <img src="Images/convex_hull.png" height="150" width = "200" hspace = "20px">
+    <figcaption> (b) Convex Hull constructed around the silhouette </figcaption>
+</figure>
+
+<figure align = "center" style = "display: inline-block;">
+    <img src="Images/final_image.png" height="150" width = "200">
+    <figcaption> (c) Final Silhouette </figcaption>
+</figure>
 
 The final silhouette was obtained by a weighted addition of frames with 5 random threshold values (weights starting from 0.5 and decreased by 0.1). Even though the silhouettes are not of a very high quality, they are sufficient to extract the required features.
 
 ### 2) Point Light Data
 
 The height of the subject is calculated using the centroid and searching in the vertical directions from the centroid. From the computed total height H, heights of the head (0% of H), neck (13% of H), arms (45-52% of H), knees (73% of H) and feet (93% of H) are estimated.
+
+<figure align = "center" style = "display: inline-block;">
+    <img src="Images/skeleton_2.png" height="150" width = "200" hspace = "20px">
+    <figcaption> (a) Input Frame </figcaption>
+</figure>
+
+<figure align = "center" style = "display: inline-block;">
+    <img src="Images/skeleton_1.png" height="150" width = "200" hspace = "20px">
+    <figcaption> (b) Essential points highlighted </figcaption>
+</figure>
+
+<figure align = "center" style = "display: inline-block;">
+    <img src="Images/skeleton_3.png" height="150" width = "200">
+    <figcaption> (c) Stick figure for visual aid </figcaption>
+</figure>
 
 Major distances computed:
 1) Front arm from the centroid
@@ -45,6 +90,20 @@ Temporal features computed:
 3) Velocity: (1/2) * cadence * stride length
 
 A SVM model was used for classification of the gait signatures. All the above mentioned features are concatenated to give a (1 x 30) feature vector for a single subject.
+
+## Getting Started
+
+### Prerequisites
+
+This project is built on Python 3. It requires OpenCV support and this project was implemented using OpenCV 3.4. The dataset used is the CASIA-C dataset which is available here (http://www.cbsr.ia.ac.cn/english/Gait%20Databases.asp). 
+
+### Running the Program
+
+To train and test the model:
+```python3 src/svm_train.py```
+
+To generate binary silhouettes:
+```python3 src/background_subtract.py```
 
 ## References
 1. D. Das and S. Saharia, “Human gait analysis and recognition using

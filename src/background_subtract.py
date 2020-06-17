@@ -3,6 +3,7 @@ import numpy as np
 from skimage import feature, img_as_ubyte
 from skimage.filters import sobel
 from skimage.filters.thresholding import threshold_adaptive
+import glob
 
 
 def median_image(path):
@@ -255,8 +256,14 @@ def detect_roi(path, background):
     video.release()
     video_write.release()
 
+# Generating the binary silhouette video sequence for each gait video
+# Dataset is the folder containing all the videos
+contents = glob.glob(r'Dataset\*.mp4')
 
-video_path = r'E:\PES\CDSAML\DatasetC\videos\01015fn00.avi'
-median_value = median_image(video_path)
-detect_roi(video_path, median_value)
+for path in contents:
+
+    video_path = path
+    median_value = median_image(video_path)
+    detect_roi(video_path, median_value)
+
 cv2.destroyAllWindows()

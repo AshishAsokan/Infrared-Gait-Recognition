@@ -11,7 +11,9 @@ import numpy as np
 
 import glob
 
+# Path to training set
 contents = glob.glob(r'Train_videos\*.mp4')
+
 train_vector = []
 mean_vector = []
 responses_train = []
