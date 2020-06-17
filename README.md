@@ -10,38 +10,34 @@ This project is an implementation of a gait recognition system with the CASIA-C 
 
 The initial ROI is obtained by first modelling the background of the gait sequence using a standard intensity-based background median model at each pixel. Once this background model is generated, it is subtracted from the gait sequences to obtain a rough estimate of the silhouette. Given below is an example of the silhouette obtained:
 
-<figure align = "center" style = "display: inline-block;">
-    <img src="Images/gait6.png" height="150" width = "200" hspace = "20px">
-    <figcaption> (a) Original Frame </figcaption>
-</figure>
-
-<figure align = "center" style = "display: inline-block;">
-    <img src="Images/gait5.png" height="150" width = "200" hspace = "20px">
-    <figcaption> (b) Background Median </figcaption>
-</figure>
-
-<figure align = "center" style = "display: inline-block;">
-    <img src="Images/gait7.png" height="150" width = "200">
-    <figcaption> (c) Silhouette obtained </figcaption>
-</figure>
+<table>
+    <tr>
+        <td align = "center" > Original Image </td>
+        <td align = "center" > Background Median</td>
+        <td align = "center" > Silhouette obtained</td>
+    </tr>
+    <tr>
+        <td><img src="Images/gait6.png" height="190" width = "270"></td>
+        <td><img src="Images/gait5.png" height="190" width = "270"></td>
+        <td><img src="Images/gait7.png" height="190" width = "270"></td>
+    </tr>
+ </table>
 
 Sobel edge detectors are used to generate a crude outline of the subject along with gamma correction to improve visibility. The torso and the feet of the human silhouette were pro-
 cessed individually and a convex hull was constructed around the largest contour which outlined the foreground object. 
 
-<figure align = "center" style = "display: inline-block;">
-    <img src="Images/gait10.png" height="150" width = "200" hspace = "20px">
-    <figcaption> (a) Final gradients with gamma correction </figcaption>
-</figure>
-
-<figure align = "center" style = "display: inline-block;">
-    <img src="Images/convex_hull.png" height="150" width = "200" hspace = "20px">
-    <figcaption> (b) Convex Hull constructed around the silhouette </figcaption>
-</figure>
-
-<figure align = "center" style = "display: inline-block;">
-    <img src="Images/final_image.png" height="150" width = "200">
-    <figcaption> (c) Final Silhouette </figcaption>
-</figure>
+<table>
+    <tr>
+        <td align = "center"> Final gradients with gamma correction </td>
+        <td align = "center"> Convex Hull constructed around the silhouette </td>
+        <td align = "center"> Final Silhouette </td>
+    </tr>
+    <tr>
+        <td><img src="Images/gait10.png" height="190" width = "270"></td>
+        <td><img src="Images/convex_hull.png" height="190" width = "270"></td>
+        <td><img src="Images/final_image.png" height="190" width = "270"></td>
+    </tr>
+ </table>
 
 The final silhouette was obtained by a weighted addition of frames with 5 random threshold values (weights starting from 0.5 and decreased by 0.1). Even though the silhouettes are not of a very high quality, they are sufficient to extract the required features.
 
@@ -49,20 +45,18 @@ The final silhouette was obtained by a weighted addition of frames with 5 random
 
 The height of the subject is calculated using the centroid and searching in the vertical directions from the centroid. From the computed total height H, heights of the head (0% of H), neck (13% of H), arms (45-52% of H), knees (73% of H) and feet (93% of H) are estimated.
 
-<figure align = "center" style = "display: inline-block;">
-    <img src="Images/skeleton_2.png" height="150" width = "200" hspace = "20px">
-    <figcaption> (a) Input Frame </figcaption>
-</figure>
-
-<figure align = "center" style = "display: inline-block;">
-    <img src="Images/skeleton_1.png" height="150" width = "200" hspace = "20px">
-    <figcaption> (b) Essential points highlighted </figcaption>
-</figure>
-
-<figure align = "center" style = "display: inline-block;">
-    <img src="Images/skeleton_3.png" height="150" width = "200">
-    <figcaption> (c) Stick figure for visual aid </figcaption>
-</figure>
+<table>
+    <tr>
+        <td align = "center"> Input Frame </td>
+        <td align = "center"> Point Lights </td>
+        <td align = "center"> Stick figure for visual aid </td>
+    </tr>
+    <tr>
+        <td><img src="Images/skeleton_2.png" height="190" width = "270"></td>
+        <td><img src="Images/skeleton_1.png" height="190" width = "270"></td>
+        <td><img src="Images/skeleton_3.png" height="190" width = "270"></td>
+    </tr>
+ </table>
 
 Major distances computed:
 1) Front arm from the centroid
